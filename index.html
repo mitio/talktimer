@@ -1,0 +1,73 @@
+<html>
+<head>
+	<title>Instant Talk Timer</title>
+	<style type="text/css">
+		body, html {
+			min-height: 100%;
+		}
+		body {
+			text-align: center;
+			padding: 0;
+			margin: 0;
+			border: none;
+			font-family: verdana, arial, sans-serif;
+		}
+		.timer-display {
+			line-height: 100%;
+			font-size: 100px;
+			text-align: bottom;
+		}
+		.dark {
+			background-color: #000;
+		}
+		.dark .timer-display {
+			color: #FFF;
+		}
+	</style>
+	<script type="text/javascript" src="lib/vendor/zepto/zepto.min.js"></script>
+	<script type="text/javascript">
+		$(function () {
+			var totalDurationInMinutes = parseInt(location.search.toString().replace(/^\?/, ''), 10);
+			if (!totalDurationInMinutes) return;
+
+			var startedAt = new Date();
+			var timerDisplay = $('.timer-display');
+			var refreshTimer;
+
+			var updateTimerDisplay = function () {
+				var elapsedTime = new Date() - startedAt;
+				var remainingDurationInMinutes = Math.round((totalDurationInMinutes * 60000 - elapsedTime) / 60000);
+
+				if (remainingDurationInMinutes < 0) {
+					remainingDurationInMinutes = 0;
+				}
+
+				timerDisplay.text(remainingDurationInMinutes);
+
+				if (remainingDurationInMinutes == 0) {
+					clearInterval(refreshTimer);
+				}
+			};
+
+			var resizeTimerDisplay = function () {
+				var height = parseInt($(window).height());
+				var fontSizePercentage = 0.9;
+
+				timerDisplay
+					.height(height)
+					.css({
+						fontSize: (height * fontSizePercentage),
+						paddingTop: (height * (1 - fontSizePercentage) / 2)
+					});
+			};
+
+			refreshTimer = setInterval(updateTimerDisplay, 1000);
+			$(window).resize(resizeTimerDisplay);
+			resizeTimerDisplay();
+		});
+	</script>
+</head>
+<body class="dark">
+	<div class="timer-display"></div>
+</body>
+</html>
