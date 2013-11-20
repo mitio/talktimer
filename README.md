@@ -15,3 +15,9 @@ Open `index.html` and set the desired duration in minutes as a query parameter, 
 This will start the timer at 45 minutes.
 
 When more than 80% of the time has elapsed, the background will change to red.
+
+## Demo
+
+You can find a [live demo here](http://ddimitrov.name/instanttalktimer/?5).
+
+Good luck with your presentations!
