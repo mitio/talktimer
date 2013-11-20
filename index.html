@@ -1,75 +1,73 @@
 <html>
 <head>
-	<title>Instant Talk Timer</title>
-	<style type="text/css">
-		body, html {
-			min-height: 100%;
-		}
-		body {
-			text-align: center;
-			padding: 0;
-			margin: 0;
-			border: none;
-			font-family: verdana, arial, sans-serif;
-		}
-		.timer-display {
-			line-height: 100%;
-			font-size: 100px;
-			text-align: bottom;
-		}
-		.little-time-remaining {
-			background-color: #f00;
-		}
-		.little-time-remaining .timer-display {
-			font-weight: bold;
-		}
-		.dark {
-			background-color: #000;
-		}
-		.dark .timer-display {
-			color: #FFF;
-		}
-	</style>
-	<script type="text/javascript" src="lib/vendor/zepto/zepto.min.js"></script>
-	<script type="text/javascript">
-		$(function () {
-			var totalDurationInMinutes = parseInt(location.search.toString().replace(/^\?/, ''), 10);
-			if (!totalDurationInMinutes) return;
+  <title>Instant Talk Timer</title>
+  <style type="text/css">
+    body, html {
+      min-height: 100%;
+    }
+    body {
+      text-align: center;
+      padding: 0;
+      margin: 0;
+      border: none;
+      font-family: verdana, arial, sans-serif;
+    }
+    .timer-display {
+      line-height: 100%;
+      font-size: 100px;
+      text-align: bottom;
+    }
+    .dark {
+      background-color: #000;
+    }
+    .dark .timer-display {
+      color: #FFF;
+    }
+    .little-time-remaining.timer-display {
+      background-color: #f00;
+      font-weight: bold;
+    }
+  </style>
+  <script type="text/javascript" src="lib/vendor/zepto/zepto.min.js"></script>
+  <script type="text/javascript">
+    $(function () {
+      var totalDurationInMinutes = parseInt(location.search.toString().replace(/^\?/, ''), 10);
+      if (!totalDurationInMinutes) return;
 
-			var startedAt = new Date();
-			var timerDisplay = $('.timer-display');
-			var littleTimeRemainingPercentage = 0.2;
+      var startedAt = new Date();
+      var timerDisplay = $('.timer-display');
+      var littleTimeRemainingPercentage = 0.2;
 
-			var updateTimerDisplay = function () {
-				var elapsedTime = new Date() - startedAt;
-				var remainingDurationInMinutes = Math.round((totalDurationInMinutes * 60000 - elapsedTime) / 60000);
+      var updateTimerDisplay = function () {
+        var elapsedTime = new Date() - startedAt;
+        var remainingDurationInMinutes = Math.round((totalDurationInMinutes * 60000 - elapsedTime) / 60000);
 
-				timerDisplay.text(remainingDurationInMinutes);
+        timerDisplay.text(remainingDurationInMinutes);
 
-				if (remainingDurationInMinutes < Math.ceil(totalDurationInMinutes * littleTimeRemainingPercentage)) {
-					timerDisplay.addClass('little-time-remaining');
-				}
-			};
+        if (remainingDurationInMinutes <= Math.ceil(totalDurationInMinutes * littleTimeRemainingPercentage)) {
+          timerDisplay.addClass('little-time-remaining');
+        }
+      };
 
-			var resizeTimerDisplay = function () {
-				var height = parseInt($(window).height());
-				var fontSizePercentage = 0.9;
+      var resizeTimerDisplay = function () {
+        var height = parseInt($(window).height());
+        var fontSizePercentage = 0.9;
 
-				timerDisplay
-					.height(height)
-					.css({
-						fontSize: (height * fontSizePercentage),
-						paddingTop: (height * (1 - fontSizePercentage) / 2)
-					});
-			};
+        timerDisplay
+          .height(height)
+          .css({
+            fontSize: (height * fontSizePercentage),
+            paddingTop: (height * (1 - fontSizePercentage) / 2)
+          });
+      };
 
-			setInterval(updateTimerDisplay, 1000);
-			$(window).resize(resizeTimerDisplay);
-			resizeTimerDisplay();
-		});
-	</script>
+      setInterval(updateTimerDisplay, 1000);
+      $(window).resize(resizeTimerDisplay);
+      resizeTimerDisplay();
+    });
+  </script>
 </head>
 <body class="dark">
-	<div class="timer-display"></div>
+  <div class="timer-display"></div>
 </body>
 </html>
