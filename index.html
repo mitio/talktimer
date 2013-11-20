@@ -17,6 +17,12 @@
 			font-size: 100px;
 			text-align: bottom;
 		}
+		.little-time-remaining {
+			background-color: #f00;
+		}
+		.little-time-remaining .timer-display {
+			font-weight: bold;
+		}
 		.dark {
 			background-color: #000;
 		}
@@ -32,20 +38,16 @@
 
 			var startedAt = new Date();
 			var timerDisplay = $('.timer-display');
-			var refreshTimer;
+			var littleTimeRemainingPercentage = 0.2;
 
 			var updateTimerDisplay = function () {
 				var elapsedTime = new Date() - startedAt;
 				var remainingDurationInMinutes = Math.round((totalDurationInMinutes * 60000 - elapsedTime) / 60000);
 
-				if (remainingDurationInMinutes < 0) {
-					remainingDurationInMinutes = 0;
-				}
-
 				timerDisplay.text(remainingDurationInMinutes);
 
-				if (remainingDurationInMinutes == 0) {
-					clearInterval(refreshTimer);
+				if (remainingDurationInMinutes < Math.ceil(totalDurationInMinutes * littleTimeRemainingPercentage)) {
+					timerDisplay.addClass('little-time-remaining');
 				}
 			};
 
@@ -61,7 +63,7 @@
 					});
 			};
 
-			refreshTimer = setInterval(updateTimerDisplay, 1000);
+			setInterval(updateTimerDisplay, 1000);
 			$(window).resize(resizeTimerDisplay);
 			resizeTimerDisplay();
 		});
