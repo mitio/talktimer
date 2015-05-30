@@ -42,7 +42,7 @@
       var updateTimerDisplay = function () {
         var elapsedTime = new Date() - startedAt;
         var remainingDurationInMinutes = Math.round((totalDurationInMinutes * 60000 - elapsedTime) / 60000);
-        var remainingDurationSeconds   = Math.round((totalDurationInMinutes * 60000 - elapsedTime) % 60000);
+        var remainingDurationSeconds   = Math.round((totalDurationInMinutes * 60000 - elapsedTime) / 1000 % 60);
         
         if (remainingDurationSeconds < 10) {
           remainingDurationSeconds = '0' + remainingDurationSeconds;
