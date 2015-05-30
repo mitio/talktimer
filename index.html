@@ -15,6 +15,7 @@
     .timer-display {
       line-height: 100%;
       font-size: 100px;
+      white-space: nowrap;
     }
     .timer-display .seconds {
       font-size: 0.7em;
@@ -66,7 +67,7 @@
 
       var resizeTimerDisplay = function () {
         var height = parseInt($(window).height());
-        var fontSizePercentage = 0.9;
+        var fontSizePercentage = 0.7;
 
         timerDisplay
           .height(height)
