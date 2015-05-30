@@ -16,6 +16,9 @@
       line-height: 100%;
       font-size: 100px;
     }
+    .timer-display .seconds {
+      font-size: 0.7em;
+    }
     .dark {
       background-color: #000;
     }
@@ -39,8 +42,13 @@
       var updateTimerDisplay = function () {
         var elapsedTime = new Date() - startedAt;
         var remainingDurationInMinutes = Math.round((totalDurationInMinutes * 60000 - elapsedTime) / 60000);
+        var remainingDurationSeconds   = Math.round((totalDurationInMinutes * 60000 - elapsedTime) % 60000);
+        
+        if (remainingDurationSeconds < 10) {
+          remainingDurationSeconds = '0' + remainingDurationSeconds;
+        }
 
-        timerDisplay.text(remainingDurationInMinutes);
+        timerDisplay.html(remainingDurationInMinutes + '<span class="seconds">:' + remainingDurationSeconds + '</span>');
 
         if (remainingDurationInMinutes <= Math.ceil(totalDurationInMinutes * littleTimeRemainingPercentage)) {
           timerDisplay.addClass('little-time-remaining');
