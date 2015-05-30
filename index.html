@@ -38,17 +38,19 @@
       var startedAt = new Date();
       var timerDisplay = $('.timer-display');
       var littleTimeRemainingPercentage = 0;
+      var totalDurationInSeconds = totalDurationInMinutes * 60;
 
       var updateTimerDisplay = function () {
-        var elapsedTime = new Date() - startedAt;
-        var remainingDurationInMinutes = Math.round((totalDurationInMinutes * 60000 - elapsedTime) / 60000);
-        var remainingDurationSeconds   = Math.round((totalDurationInMinutes * 60000 - elapsedTime) / 1000 % 60);
+        var elapsedTime = (new Date() - startedAt) / 1000;
+        var remainingDurationInSeconds = totalDurationInSeconds - elapsedTime;
+        var remainingDurationMinutes   = Math.floor(remainingDurationInSeconds / 60);
+        var remainingDurationSeconds   = Math.abs(remainingDurationInSeconds % 60);
         
         if (remainingDurationSeconds < 10) {
           remainingDurationSeconds = '0' + remainingDurationSeconds;
         }
 
-        timerDisplay.html(remainingDurationInMinutes + '<span class="seconds">:' + remainingDurationSeconds + '</span>');
+        timerDisplay.html(remainingDurationMinutes + '<span class="seconds">:' + remainingDurationSeconds + '</span>');
 
         if (remainingDurationInMinutes <= Math.ceil(totalDurationInMinutes * littleTimeRemainingPercentage)) {
           timerDisplay.addClass('little-time-remaining');
