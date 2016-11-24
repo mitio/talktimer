@@ -8,18 +8,19 @@
       min-height: 100%;
     }
     body {
-      text-align: center;
       padding: 0;
       margin: 0;
       border: none;
-      font-family: Impact, Arial, sans-serif;
-      font-weight: bold;
+      font-family: Arial, sans-serif;
     }
     .timer-display {
+      text-align: center;
       line-height: 100%;
       font-size: 100px;
       white-space: nowrap;
       box-sizing: border-box;
+      font-family: Impact, Arial, sans-serif;
+      font-weight: bold;
     }
     .timer-display .seconds {
       font-size: 0.7em;
@@ -27,13 +28,46 @@
       width: 1.5em;
       text-align: left;
     }
-    .dark {
+    .hide-seconds .timer-display .seconds {
+      display: none;
+    }
+    body {
       background-color: #000;
     }
-    .dark .timer-display {
+    body .timer-display,
+    body .help {
       color: #FFF;
     }
-    .little-time-remaining.timer-display {
+    .help {
+      padding: 1em 2em;
+    }
+    .help fieldset {
+      margin: 1em 0;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+    }
+    .help p .text {
+      display: block;
+      margin: 0.3em 0;
+    }
+    .help p.radio .text {
+      display: inline-block;
+    }
+    .help input {
+      font-size: 1.2em;
+    }
+    .help input[type=number] {
+      width: 4em;
+    }
+    .timer-active .help {
+      display: none;
+    }
+    .timer-active body {
+      background-color: green;
+    }
+    .little-time-remaining body {
+      background-color: #c36600;
+    }
+    .no-time-remaining body {
       background-color: #8f0000;
     }
     a[href=toggle-fullscreen] .enter { display: block; }
@@ -41,9 +75,13 @@
     .in-fullscreen a[href=toggle-fullscreen] .enter { display: none; }
     .in-fullscreen a[href=toggle-fullscreen] .exit  { display: block; }
     .controls {
+      display: none;
       position: fixed;
       top: 0;
       right: 0;
+    }
+    .timer-active .controls {
+      display: block;
     }
     .controls a {
       display: block;
@@ -57,21 +95,65 @@
       font-size: 2.2em;
       line-height: 1em;
       text-decoration: none;
-      color: #aaa;
+      color: rgba(255, 255, 255, 0.5);
       background-color: rgba(255, 255, 255, 0.2);
     }
   </style>
   <script type="text/javascript" src="lib/vendor/zepto/zepto.min.js"></script>
   <script type="text/javascript">
     $(function () {
-      var totalDurationInMinutes = parseInt(location.search.toString().replace(/^\?/, ''), 10);
-      if (!totalDurationInMinutes) return;
-
+      var params = {};
       var startedAt = null;
       var updateTimerDisplayInterval = null;
       var timerDisplay = $('.timer-display');
-      var littleTimeRemainingPercentage = 0;
-      var totalDurationInSeconds = totalDurationInMinutes * 60;
+
+      var paramsString = location.search.toString().replace(/^\?/, '');
+
+      if (paramsString.match(/^\d+$/)) {
+        params['time-in-minutes'] = paramsString;
+      } else if (paramsString !== '') {
+        paramsString.split('&').forEach(function(keyValuePair) {
+          var pairParts = keyValuePair.split('=');
+          var name      = pairParts[0];
+          var value     = pairParts[1];
+
+          params[name] = value;
+        });
+      }
+
+      if (params['time'] && params['time-in']) {
+        var totalDurationInSeconds = parseInt(params['time'], 10);
+
+        if (params['time-in'] === 'minutes') {
+          totalDurationInSeconds *= 60;
+        }
+      }
+
+      if (!totalDurationInSeconds) return;
+
+      if (params['warn-at'] && params['warn-time-in']) {
+        var warnAtInSeconds = parseInt(params['warn-at'], 10);
+
+        if (params['warn-time-in'] === 'minutes') {
+          warnAtInSeconds *= 60;
+        }
+      }
+
+      var isHexColor = function (colorString) {
+        return colorString.match(/^[0-9a-f]{3}|[0-9a-f]{6}$/);
+      }
+
+      var parseColor = function (colorString) {
+        if (isHexColor(colorString)) {
+          return '#' + colorString;
+        } else {
+          return colorString;
+        }
+      };
+
+      if (params['hide-seconds'] === 'true') {
+        $('html').addClass('hide-seconds');
+      }
 
       var updateTimerDisplay = function () {
         var elapsedTime                = Math.round((new Date() - startedAt) / 1000);
@@ -89,8 +171,12 @@
 
         timerDisplay.html(remainingDurationMinutes + '<span class="seconds">:' + remainingDurationSeconds + '</span>');
 
-        if (remainingDurationInSeconds <= Math.ceil(totalDurationInSeconds * littleTimeRemainingPercentage)) {
-          timerDisplay.addClass('little-time-remaining');
+        if (remainingDurationInSeconds <= warnAtInSeconds) {
+          $('html').addClass('little-time-remaining');
+        }
+
+        if (remainingDurationInSeconds < 0) {
+          $('html').addClass('no-time-remaining');
         }
       };
 
@@ -112,6 +198,8 @@
         if (updateTimerDisplayInterval) {
           clearInterval(updateTimerDisplayInterval);
         }
+
+        $('html').removeClass('little-time-remaining no-time-remaining').addClass('timer-active');
 
         updateTimerDisplayInterval = setInterval(updateTimerDisplay, 1000);
         updateTimerDisplay();
@@ -166,10 +254,17 @@
         }
       });
 
-      $('a[href=reset]').click(function(e) {
+      $('a[href=restart]').click(function(e) {
         e.preventDefault();
 
         startTimer();
+      });
+
+      $('a[href=reset]').click(function(e) {
+        e.preventDefault();
+
+        var locationWithoutQueryString = window.location.toString().split('?')[0];
+        window.location = locationWithoutQueryString;
       });
 
       updateTimerDisplay();
@@ -177,14 +272,69 @@
     });
   </script>
 </head>
-<body class="dark">
+<body>
   <div class="controls">
     <a href="toggle-fullscreen">
       <span class="enter">↗</span>
       <span class="exit">↙</span>
     </a>
+    <a href="restart">↺</a>
     <a href="reset">&times;</a>
   </div>
   <div class="timer-display"></div>
+  <div class="help">
+    <h1>Instant Talk Timer</h1>
+    <p>All values below are optional, except the time. You need to fill in at least one of the "time" fields.</p>
+    <form>
+      <fieldset>
+        <legend>Required</legend>
+
+        <p class="radio">
+          <label>
+            <span class="text">Time:</span>
+            <input name="time" type="number">
+          </label>
+          <label>
+            <input type="radio" name="time-in" value="minutes" checked> minutes
+          </label>
+          <label>
+            <input type="radio" name="time-in" value="seconds"> seconds
+          </label>
+
+          <input type="submit" value="Start timer">
+        </p>
+      </fieldset>
+
+      <fieldset>
+        <legend>Optional</legend>
+
+        <p class="radio">
+          <label>
+            <span class="text">Show "warning" color at:</span>
+            <input name="warn-at" type="number">
+          </label>
+          <label>
+            <input type="radio" name="warn-time-in" value="minutes" checked> minutes
+          </label>
+          <label>
+            <input type="radio" name="warn-time-in" value="seconds"> seconds
+          </label>
+        </p>
+        <p class="radio">
+          <span class="text">Show seconds:</span>
+          <label>
+            <input type="radio" name="hide-seconds" value="false" checked> Yes
+          </label>
+          <label>
+            <input type="radio" name="hide-seconds" value="true"> No
+          </label>
+        </p>
+      </fieldset>
+
+      <p>
+        <input type="submit" value="Start timer">
+      </p>
+    </form>
+  </div>
 </body>
 </html>
