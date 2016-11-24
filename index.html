@@ -161,7 +161,8 @@
       var paramsString = location.search.toString().replace(/^\?/, '');
 
       if (paramsString.match(/^\d+$/)) {
-        params['time-in-minutes'] = paramsString;
+        params['time'] = paramsString;
+        params['time-in'] = 'minutes';
       } else if (paramsString !== '') {
         paramsString.split('&').forEach(function(keyValuePair) {
           var pairParts = keyValuePair.split('=');
