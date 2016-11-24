@@ -176,7 +176,11 @@
 
             params[name] = value;
           });
+        } else {
+          params = {};
         }
+
+        setStateInUI(params);
 
         if (params['time'] && params['time-in']) {
           totalDurationInSeconds = parseInt(params['time'], 10);
@@ -184,10 +188,11 @@
           if (params['time-in'] === 'minutes') {
             totalDurationInSeconds *= 60;
           }
+        } else {
+          totalDurationInSeconds = null;
         }
 
         if (!totalDurationInSeconds) {
-          setStateInUI(loadState());
           return;
         }
 
@@ -197,11 +202,11 @@
           if (params['warn-time-in'] === 'minutes') {
             warnAtInSeconds *= 60;
           }
+        } else {
+          warnAtInSeconds = 0;
         }
 
-        if (params['hide-seconds'] === 'true') {
-          $('html').addClass('hide-seconds');
-        }
+        $('html').toggleClass('hide-seconds', params['hide-seconds'] === 'true');
 
         storeState(params);
 
@@ -346,7 +351,11 @@
 
       var paramsString = location.search.toString().replace(/^\?/, '');
 
-      initializeFromParams(paramsString);
+      if (paramsString) {
+        initializeFromParams(paramsString);
+      } else {
+        setStateInUI(loadState());
+      }
     });
   </script>
 </head>
