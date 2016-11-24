@@ -14,6 +14,7 @@
       font-family: Arial, sans-serif;
     }
     .timer-display {
+      display: none;
       text-align: center;
       line-height: 100%;
       font-size: 100px;
@@ -21,6 +22,9 @@
       box-sizing: border-box;
       font-family: Impact, Arial, sans-serif;
       font-weight: bold;
+    }
+    .timer-active .timer-display {
+      display: block;
     }
     .timer-display .seconds {
       font-size: 0.7em;
@@ -105,6 +109,8 @@
       var params = {};
       var startedAt = null;
       var updateTimerDisplayInterval = null;
+      var totalDurationInSeconds = null;
+      var warnAtInSeconds = null;
       var timerDisplay = $('.timer-display');
 
       var storeState = function (state) {
@@ -158,47 +164,49 @@
         }
       };
 
-      var paramsString = location.search.toString().replace(/^\?/, '');
+      var initializeFromParams = function (paramsString) {
+        if (paramsString.match(/^\d+$/)) {
+          params['time'] = paramsString;
+          params['time-in'] = 'minutes';
+        } else if (paramsString !== '') {
+          paramsString.split('&').forEach(function(keyValuePair) {
+            var pairParts = keyValuePair.split('=');
+            var name      = pairParts[0];
+            var value     = pairParts[1];
 
-      if (paramsString.match(/^\d+$/)) {
-        params['time'] = paramsString;
-        params['time-in'] = 'minutes';
-      } else if (paramsString !== '') {
-        paramsString.split('&').forEach(function(keyValuePair) {
-          var pairParts = keyValuePair.split('=');
-          var name      = pairParts[0];
-          var value     = pairParts[1];
-
-          params[name] = value;
-        });
-      }
-
-      if (params['time'] && params['time-in']) {
-        var totalDurationInSeconds = parseInt(params['time'], 10);
-
-        if (params['time-in'] === 'minutes') {
-          totalDurationInSeconds *= 60;
+            params[name] = value;
+          });
         }
-      }
 
-      if (!totalDurationInSeconds) {
-        setStateInUI(loadState());
-        return;
-      }
+        if (params['time'] && params['time-in']) {
+          totalDurationInSeconds = parseInt(params['time'], 10);
 
-      if (params['warn-at'] && params['warn-time-in']) {
-        var warnAtInSeconds = parseInt(params['warn-at'], 10);
-
-        if (params['warn-time-in'] === 'minutes') {
-          warnAtInSeconds *= 60;
+          if (params['time-in'] === 'minutes') {
+            totalDurationInSeconds *= 60;
+          }
         }
-      }
 
-      if (params['hide-seconds'] === 'true') {
-        $('html').addClass('hide-seconds');
-      }
+        if (!totalDurationInSeconds) {
+          setStateInUI(loadState());
+          return;
+        }
 
-      storeState(params);
+        if (params['warn-at'] && params['warn-time-in']) {
+          warnAtInSeconds = parseInt(params['warn-at'], 10);
+
+          if (params['warn-time-in'] === 'minutes') {
+            warnAtInSeconds *= 60;
+          }
+        }
+
+        if (params['hide-seconds'] === 'true') {
+          $('html').addClass('hide-seconds');
+        }
+
+        storeState(params);
+
+        restartTimer();
+      };
 
       var updateTimerDisplay = function () {
         var elapsedTime                = Math.round((new Date() - startedAt) / 1000);
@@ -237,17 +245,25 @@
           });
       };
 
-      var startTimer = function () {
+      var restartTimer = function () {
         startedAt = new Date();
 
-        if (updateTimerDisplayInterval) {
-          clearInterval(updateTimerDisplayInterval);
-        }
+        stopTimer();
 
         $('html').removeClass('little-time-remaining no-time-remaining').addClass('timer-active');
 
         updateTimerDisplayInterval = setInterval(updateTimerDisplay, 1000);
         updateTimerDisplay();
+        resizeTimerDisplay();
+      };
+
+      var stopTimer = function () {
+        if (updateTimerDisplayInterval) {
+          clearInterval(updateTimerDisplayInterval);
+          updateTimerDisplayInterval = null;
+        }
+
+        $('html').removeClass('timer-active little-time-remaining no-time-remaining');
       };
 
       var requestFullscreenOn = function (element) {
@@ -285,8 +301,6 @@
 
       $(window).resize(resizeTimerDisplay);
 
-      startTimer();
-
       $('a[href=toggle-fullscreen]').click(function(e) {
         e.preventDefault();
 
@@ -302,18 +316,37 @@
       $('a[href=restart]').click(function(e) {
         e.preventDefault();
 
-        startTimer();
+        restartTimer();
       });
 
       $('a[href=reset]').click(function(e) {
         e.preventDefault();
 
-        var locationWithoutQueryString = window.location.toString().split('?')[0];
-        window.location = locationWithoutQueryString;
+        stopTimer();
       });
 
-      updateTimerDisplay();
-      resizeTimerDisplay();
+      $('form').submit(function(e) {
+        e.preventDefault();
+
+        var paramsString = $(this).serialize();
+
+        initializeFromParams(paramsString);
+      });
+
+      $('#get-link').click(function(e) {
+        e.preventDefault();
+
+        var paramsString = $('form').serialize();
+        var baseUrl = window.location.toString().split('?')[0];
+
+        var fullLink = baseUrl + '?' + paramsString;
+
+        prompt('Full link to the timer with its current setup:', fullLink);
+      });
+
+      var paramsString = location.search.toString().replace(/^\?/, '');
+
+      initializeFromParams(paramsString);
     });
   </script>
 </head>
@@ -378,6 +411,8 @@
 
       <p>
         <input type="submit" value="Start timer">
+        or
+        <input type="button" value="Get link to the timer with the current setup" id="get-link">
       </p>
     </form>
   </div>
