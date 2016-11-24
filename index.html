@@ -36,6 +36,30 @@
     .little-time-remaining.timer-display {
       background-color: #8f0000;
     }
+    a[href=toggle-fullscreen] .enter { display: block; }
+    a[href=toggle-fullscreen] .exit  { display: none; }
+    .in-fullscreen a[href=toggle-fullscreen] .enter { display: none; }
+    .in-fullscreen a[href=toggle-fullscreen] .exit  { display: block; }
+    .controls {
+      position: fixed;
+      top: 0;
+      right: 0;
+    }
+    .controls a {
+      display: block;
+      float: left;
+      padding: 0.5em;
+      margin: 0.3em 0.3em 0 0;
+      width: 1em;
+      height: 1em;
+      text-align: center;
+      font-weight: bold;
+      font-size: 2.2em;
+      line-height: 1em;
+      text-decoration: none;
+      color: #aaa;
+      background-color: rgba(255, 255, 255, 0.2);
+    }
   </style>
   <script type="text/javascript" src="lib/vendor/zepto/zepto.min.js"></script>
   <script type="text/javascript">
@@ -43,7 +67,8 @@
       var totalDurationInMinutes = parseInt(location.search.toString().replace(/^\?/, ''), 10);
       if (!totalDurationInMinutes) return;
 
-      var startedAt = new Date();
+      var startedAt = null;
+      var updateTimerDisplayInterval = null;
       var timerDisplay = $('.timer-display');
       var littleTimeRemainingPercentage = 0;
       var totalDurationInSeconds = totalDurationInMinutes * 60;
@@ -53,11 +78,11 @@
         var remainingDurationInSeconds = totalDurationInSeconds - elapsedTime;
         var remainingDurationMinutes   = Math.floor(Math.abs(remainingDurationInSeconds) / 60);
         var remainingDurationSeconds   = Math.abs(remainingDurationInSeconds % 60);
-        
+
         if (remainingDurationSeconds < 10) {
           remainingDurationSeconds = '0' + remainingDurationSeconds;
         }
-        
+
         if (remainingDurationInSeconds < 0) {
           remainingDurationMinutes = '-' + remainingDurationMinutes;
         }
@@ -81,8 +106,71 @@
           });
       };
 
-      setInterval(updateTimerDisplay, 1000);
+      var startTimer = function () {
+        startedAt = new Date();
+
+        if (updateTimerDisplayInterval) {
+          clearInterval(updateTimerDisplayInterval);
+        }
+
+        updateTimerDisplayInterval = setInterval(updateTimerDisplay, 1000);
+        updateTimerDisplay();
+      };
+
+      var requestFullscreenOn = function (element) {
+        if (element.requestFullscreen) {
+          element.requestFullscreen();
+        } else if (element.webkitRequestFullscreen) {
+          element.webkitRequestFullscreen();
+        } else if (element.mozRequestFullScreen) {
+          element.mozRequestFullScreen();
+        } else if (element.msRequestFullscreen) {
+          element.msRequestFullscreen();
+        }
+      };
+
+      var areWeInFullscreen = function () {
+        return (
+          document.fullscreenElement ||
+          document.webkitFullscreenElement ||
+          document.mozFullScreenElement ||
+          document.msFullscreenElement
+        );
+      };
+
+      var exitFullscreen = function () {
+        if (document.exitFullscreen) {
+          document.exitFullscreen();
+        } else if (document.webkitExitFullscreen) {
+          document.webkitExitFullscreen();
+        } else if (document.mozCancelFullScreen) {
+          document.mozCancelFullScreen();
+        } else if (document.msExitFullscreen) {
+          document.msExitFullscreen();
+        }
+      };
+
       $(window).resize(resizeTimerDisplay);
+
+      startTimer();
+
+      $('a[href=toggle-fullscreen]').click(function(e) {
+        e.preventDefault();
+
+        if (areWeInFullscreen()) {
+          exitFullscreen();
+          $('html').removeClass('in-fullscreen');
+        } else {
+          requestFullscreenOn(document.documentElement);
+          $('html').addClass('in-fullscreen');
+        }
+      });
+
+      $('a[href=reset]').click(function(e) {
+        e.preventDefault();
+
+        startTimer();
+      });
 
       updateTimerDisplay();
       resizeTimerDisplay();
@@ -90,6 +178,13 @@
   </script>
 </head>
 <body class="dark">
+  <div class="controls">
+    <a href="toggle-fullscreen">
+      <span class="enter">↗</span>
+      <span class="exit">↙</span>
+    </a>
+    <a href="reset">&times;</a>
+  </div>
   <div class="timer-display"></div>
 </body>
 </html>
