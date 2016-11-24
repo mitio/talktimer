@@ -107,6 +107,57 @@
       var updateTimerDisplayInterval = null;
       var timerDisplay = $('.timer-display');
 
+      var storeState = function (state) {
+        if (window.localStorage === undefined) return;
+        var prefix = '_instant_talk_timer_';
+
+        for (var fieldName in state) {
+          localStorage[prefix + fieldName] = state[fieldName];
+        }
+      };
+
+      var loadState = function () {
+        var state = {};
+        var prefix = '_instant_talk_timer_';
+
+        if (window.localStorage === undefined) return state;
+
+        for (var key in localStorage) {
+          if (key.indexOf(prefix) === 0) {
+            state[key.substring(prefix.length)] = localStorage[key];
+          }
+        }
+
+        return state;
+      }
+
+      var setStateInUI = function (state) {
+        if (!state) return;
+
+        for (var fieldName in state) {
+          var value = state[fieldName];
+          var field = $('form input[name="' + fieldName + '"]');
+
+          if (field.eq(0).is('[type=radio]')) {
+            field.filter('[value="' + value + '"]').prop('checked', true);
+          } else {
+            field.val(value);
+          }
+        }
+      };
+
+      var isHexColor = function (colorString) {
+        return colorString.match(/^[0-9a-f]{3}|[0-9a-f]{6}$/);
+      }
+
+      var parseColor = function (colorString) {
+        if (isHexColor(colorString)) {
+          return '#' + colorString;
+        } else {
+          return colorString;
+        }
+      };
+
       var paramsString = location.search.toString().replace(/^\?/, '');
 
       if (paramsString.match(/^\d+$/)) {
@@ -129,7 +180,10 @@
         }
       }
 
-      if (!totalDurationInSeconds) return;
+      if (!totalDurationInSeconds) {
+        setStateInUI(loadState());
+        return;
+      }
 
       if (params['warn-at'] && params['warn-time-in']) {
         var warnAtInSeconds = parseInt(params['warn-at'], 10);
@@ -139,21 +193,11 @@
         }
       }
 
-      var isHexColor = function (colorString) {
-        return colorString.match(/^[0-9a-f]{3}|[0-9a-f]{6}$/);
-      }
-
-      var parseColor = function (colorString) {
-        if (isHexColor(colorString)) {
-          return '#' + colorString;
-        } else {
-          return colorString;
-        }
-      };
-
       if (params['hide-seconds'] === 'true') {
         $('html').addClass('hide-seconds');
       }
+
+      storeState(params);
 
       var updateTimerDisplay = function () {
         var elapsedTime                = Math.round((new Date() - startedAt) / 1000);
