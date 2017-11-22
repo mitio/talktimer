@@ -22,6 +22,7 @@
       box-sizing: border-box;
       font-family: Impact, Arial, sans-serif;
       font-weight: bold;
+      letter-spacing: -0.01em;
     }
     .timer-active .timer-display {
       display: block;
@@ -29,8 +30,9 @@
     .timer-display .seconds {
       font-size: 0.7em;
       display: inline-block;
-      width: 1.5em;
+      width: 1.2em;
       text-align: left;
+      font-weight: normal;
     }
     .hide-seconds .timer-display .seconds {
       display: none;
@@ -168,6 +170,7 @@
         if (paramsString.match(/^\d+$/)) {
           params['time'] = paramsString;
           params['time-in'] = 'minutes';
+          params['font-height-percentage'] = 70;
         } else if (paramsString !== '') {
           paramsString.split('&').forEach(function(keyValuePair) {
             var pairParts = keyValuePair.split('=');
@@ -240,7 +243,7 @@
 
       var resizeTimerDisplay = function () {
         var height = parseInt($(window).height());
-        var fontSizePercentage = 0.7;
+        var fontSizePercentage = params['font-height-percentage'] ? params['font-height-percentage'] / 100.0 : 0.7;
 
         timerDisplay
           .height(height)
@@ -413,6 +416,12 @@
           </label>
           <label>
             <input type="radio" name="hide-seconds" value="true"> No
+          </label>
+        </p>
+        <p class="radio">
+          <label>
+            <span class="text">Font height (% from screen height):</span>
+            <input name="font-height-percentage" type="number"> %
           </label>
         </p>
       </fieldset>
