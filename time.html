@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Instant Talk Timer</title>
+  <meta charset="utf-8">
+  <style type="text/css">
+    body, html {
+      min-height: 100%;
+      background-color: green;
+      color: #FFF;
+    }
+    body {
+      padding: 0;
+      margin: 0;
+      border: none;
+      font-family: Arial, sans-serif;
+    }
+    .timer-display {
+      display: block;
+      text-align: center;
+      line-height: 100%;
+      font-size: 100px;
+      box-sizing: border-box;
+      font-family: Arial, sans-serif;
+      font-weight: bold;
+      letter-spacing: -0.05em;
+      text-transform: uppercase;
+    }
+    a[href=toggle-fullscreen] .enter { display: block; }
+    a[href=toggle-fullscreen] .exit  { display: none; }
+    .in-fullscreen a[href=toggle-fullscreen] .enter { display: none; }
+    .in-fullscreen a[href=toggle-fullscreen] .exit  { display: block; }
+    .controls {
+      display: block;
+      position: fixed;
+      top: 0;
+      right: 0;
+    }
+    .controls a {
+      display: block;
+      float: left;
+      padding: 0.5em;
+      margin: 0.3em 0.3em 0 0;
+      width: 1em;
+      height: 1em;
+      text-align: center;
+      font-weight: bold;
+      font-size: 2.2em;
+      line-height: 1em;
+      text-decoration: none;
+      color: rgba(255, 255, 255, 0.5);
+      background-color: rgba(255, 255, 255, 0.2);
+    }
+  </style>
+  <script type="text/javascript" src="lib/vendor/zepto/zepto.min.js"></script>
+  <script type="text/javascript">
+    $(function () {
+      var timerDisplay = $('.timer-display');
+
+      var resizeTimerDisplay = function () {
+        var height = parseInt($(window).height());
+        var fontSizePercentage = 0.4;
+
+        timerDisplay
+          .height(height)
+          .css({
+            fontSize: (height * fontSizePercentage),
+            paddingTop: (height * (1 - fontSizePercentage * 2) / 2)
+          });
+      };
+
+      var requestFullscreenOn = function (element) {
+        if (element.requestFullscreen) {
+          element.requestFullscreen();
+        } else if (element.webkitRequestFullscreen) {
+          element.webkitRequestFullscreen();
+        } else if (element.mozRequestFullScreen) {
+          element.mozRequestFullScreen();
+        } else if (element.msRequestFullscreen) {
+          element.msRequestFullscreen();
+        }
+      };
+
+      var areWeInFullscreen = function () {
+        return (
+          document.fullscreenElement ||
+          document.webkitFullscreenElement ||
+          document.mozFullScreenElement ||
+          document.msFullscreenElement
+        );
+      };
+
+      var exitFullscreen = function () {
+        if (document.exitFullscreen) {
+          document.exitFullscreen();
+        } else if (document.webkitExitFullscreen) {
+          document.webkitExitFullscreen();
+        } else if (document.mozCancelFullScreen) {
+          document.mozCancelFullScreen();
+        } else if (document.msExitFullscreen) {
+          document.msExitFullscreen();
+        }
+      };
+
+      $(window).resize(resizeTimerDisplay);
+
+      $('a[href=toggle-fullscreen]').click(function(e) {
+        e.preventDefault();
+
+        if (areWeInFullscreen()) {
+          exitFullscreen();
+          $('html').removeClass('in-fullscreen');
+        } else {
+          requestFullscreenOn(document.documentElement);
+          $('html').addClass('in-fullscreen');
+        }
+      });
+
+      $('html').addClass('timer-active');
+      resizeTimerDisplay();
+    });
+  </script>
+</head>
+<body>
+  <div class="controls">
+    <a href="toggle-fullscreen">
+      <span class="enter">↗</span>
+      <span class="exit">↙</span>
+    </a>
+  </div>
+  <div class="timer-display">
+    Имаш време
+  </div>
+  </div>
+</body>
+</html>
