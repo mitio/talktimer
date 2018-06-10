@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Instant Talk Timer</title>
+  <title>Talk Timer</title>
   <meta charset="utf-8">
   <style type="text/css">
     body, html {
@@ -120,7 +120,7 @@
 
       var storeState = function (state) {
         if (window.localStorage === undefined) return;
-        var prefix = '_instant_talk_timer_';
+        var prefix = '_talk_timer_';
 
         for (var fieldName in state) {
           localStorage[prefix + fieldName] = state[fieldName];
@@ -129,7 +129,7 @@
 
       var loadState = function () {
         var state = {};
-        var prefix = '_instant_talk_timer_';
+        var prefix = '_talk_timer_';
 
         if (window.localStorage === undefined) return state;
 
@@ -376,7 +376,7 @@
   </div>
   <div class="timer-display"></div>
   <div class="help">
-    <h1>Instant Talk Timer</h1>
+    <h1>Talk Timer</h1>
     <form>
       <fieldset>
         <legend>Required</legend>
