@@ -2,6 +2,8 @@
 
 No-frills talk timer in a single HTML file.
 
+![Talk timer screen shot](https://ddimitrov.name/talktimer/timer.png)
+
 ## Installation
 
 If you have internet, just open <https://ddimitrov.name/talktimer/>.
