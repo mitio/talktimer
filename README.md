@@ -15,7 +15,7 @@ For offline usage, clone the repo or get the files somehow and open `index.html`
 Opening the timer initially will show a configuration screen. You can set the duration, an optional
 "warning" threshold, whether to show seconds or not and so on.
 
-One the timer is started, you can quickly restart it with the `↺` button, put it in fullscreen with
+Once the timer is started, you can quickly restart it with the `↺` button, put it in fullscreen with
 `↗` or stop it and go back to the configuration screen with `⨉`.
 
 ### Background color
