@@ -533,6 +533,11 @@
           localStorage[ROOM_STORAGE_KEY] = room;
         } catch (e) {}
 
+        // Keep the room in the link, so a reload of this page stays in the room.
+        if (window.history && history.replaceState) {
+          history.replaceState(null, '', location.pathname + '?room=' + room + location.hash);
+        }
+
         el('current-room').textContent = room;
         el('tablet-link').value = tabletLink(room);
         el('tablet-report').textContent = 'No report from the tablet yet.';
