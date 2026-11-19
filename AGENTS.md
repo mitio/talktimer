@@ -68,12 +68,12 @@ Both pages listen to the same topic and ignore their own kind of message.
 
 | `type` | Sent by | Fields | Receiver's action |
 | --- | --- | --- | --- |
-| `set` | admin | `id`, `seconds`, `warn` (seconds), `hideSeconds` (`true` when the time was typed in minutes) | Tablet restarts the countdown from `seconds`, hides or shows the seconds, then sends `status` with `ack: id`. A `set` without `hideSeconds` leaves the seconds setting as it is |
+| `set` | admin | `id`, `seconds`, `warn` (seconds), `hideSeconds` (`true` when "Show seconds" is set to "No") | Tablet restarts the countdown from `seconds`, hides or shows the seconds, then sends `status` with `ack: id`. A `set` without `hideSeconds` leaves the seconds setting as it is |
 | `ping` | admin | `id` | Tablet sends `status` with `ack: id` and changes nothing |
 | `room` | admin | `id`, `room` | Tablet joins the new room, rewrites its own link, and sends `status` with `ack: id` **in the new room** |
 | `status` | tablet | `ack` (command id or `null`), `room`, `state` (`waiting`, `running`, `warning`, `overtime`), `total`, `warn`, `hideSeconds`, `remaining` (seconds, `null` when waiting), `left` and `limit` (the tablet's ntfy quota) | Admin shows the confirmation and counts down locally from `remaining` |
 
-An end time typed in the admin page ("end at 18:30") is not a message type of its own: the admin page converts it to seconds with its own clock and sends a normal `set` with `hideSeconds: true`. The tablet never needs a correct clock. "Tablet ends at HH:MM" in the admin page is the moment the last `status` arrived plus its `remaining`.
+An end time typed in the admin page ("end at 18:30") is not a message type of its own: the admin page converts it to seconds with its own clock and sends a normal `set`, with `hideSeconds` taken from the same "Show seconds" choice. The tablet never needs a correct clock. "Tablet ends at HH:MM" in the admin page is the moment the last `status` arrived plus its `remaining`.
 
 The tablet also sends a `status` with `ack: null` once per page load and when someone presses `↺` or `⨉` on it.
 
@@ -113,8 +113,8 @@ There is no test suite in the repo. Test every change by hand or with a browser-
 | 1 | `index.html` with no parameters; start, `↺`, `⨉` | As described in the README |
 | 2 | `?5` and the long preset link | The timer starts at once |
 | 3 | `?room=N`, nothing sent | "Waiting for the control room", room number shown |
-| 4 | Admin sends a time in seconds with a warning | Tablet shows it with seconds within about a second; admin shows "Tablet confirmed" and the same countdown |
-| 4b | Admin sends a time in minutes | Tablet and the admin preview show whole minutes only, rounded up (`1` during the last minute, `0` when the time is over, `-1` one minute later); a reload of the tablet keeps the seconds hidden |
+| 4 | Admin sends a time with a warning, "Show seconds: Yes" | Tablet shows it with seconds within about a second; admin shows "Tablet confirmed" and the same countdown |
+| 4b | Admin sends a time with "Show seconds: No" | Tablet and the admin preview show whole minutes only, rounded up (`1` during the last minute, `0` when the time is over, `-1` one minute later); a reload of the tablet keeps the seconds hidden |
 | 5 | Admin sends a new time while one runs | Tablet restarts from the new time |
 | 6 | Reload the tablet mid-countdown | The countdown continues, it does not restart |
 | 7 | Close the tablet, send a time, reopen the tablet | Admin shows "NOT confirmed", then "confirmed (late)" when the tablet applies it |

@@ -136,6 +136,11 @@
         <label><input type="radio" name="warn-time-in" value="seconds"> seconds</label>
       </p>
       <p>
+        Show seconds:
+        <label><input type="radio" name="hide-seconds" value="false" checked> Yes</label>
+        <label><input type="radio" name="hide-seconds" value="true"> No</label>
+      </p>
+      <p>
         <input type="submit" value="Send time to the tablet">
         <button type="button" id="check-tablet">Check tablet</button>
       </p>
@@ -149,8 +154,8 @@
       </p>
       <p class="hint">
         The countdown on the tablet starts again from the new time.
-        With "minutes" the tablet shows only minutes; with "seconds" it shows minutes and seconds.
-        An end time uses the clock of this computer, and the tablet shows only minutes.
+        With "Show seconds: No" the tablet shows whole minutes only, rounded up.
+        An end time uses the clock of this computer.
       </p>
     </fieldset>
   </form>
@@ -618,11 +623,16 @@
         return unit === 'minutes' ? value * 60 : value;
       };
 
+      // The "Show seconds" choice, as in the configuration screen of the timer.
+      var secondsHidden = function () {
+        return document.querySelector('input[name="hide-seconds"]:checked').value === 'true';
+      };
+
       el('time-form').addEventListener('submit', function (e) {
         e.preventDefault();
 
         var seconds = secondsFrom('time', 'time-in');
-        var inMinutes = document.querySelector('input[name="time-in"]:checked').value === 'minutes';
+        var hideSeconds = secondsHidden();
         var warn    = secondsFrom('warn-at', 'warn-time-in') || 0;
 
         if (!(seconds > 0)) {
@@ -635,14 +645,14 @@
           return;
         }
 
-        // A time typed in minutes is shown on the tablet without seconds.
-        send('set', { seconds: seconds, warn: warn, hideSeconds: inMinutes },
+        send('set', { seconds: seconds, warn: warn, hideSeconds: hideSeconds },
              'new time ' + formatSeconds(seconds) + (warn ? ', warning at ' + formatSeconds(warn) : '') +
-             (inMinutes ? ', seconds hidden' : ', seconds shown'));
+             (hideSeconds ? ', seconds hidden' : ', seconds shown'));
       });
 
       el('send-end').addEventListener('click', function () {
         var seconds = secondsUntil(el('end-at').value);
+        var hideSeconds = secondsHidden();
         var warn    = secondsFrom('warn-at', 'warn-time-in') || 0;
 
         if (seconds === null) {
@@ -660,9 +670,10 @@
           return;
         }
 
-        send('set', { seconds: seconds, warn: warn, hideSeconds: true },
+        send('set', { seconds: seconds, warn: warn, hideSeconds: hideSeconds },
              'end at ' + el('end-at').value + ' (' + formatSeconds(seconds) + ' from now)' +
-             (warn ? ', warning at ' + formatSeconds(warn) : '') + ', seconds hidden');
+             (warn ? ', warning at ' + formatSeconds(warn) : '') +
+             (hideSeconds ? ', seconds hidden' : ', seconds shown'));
       });
 
       // Shows what each of the two time fields would do if sent right now.
