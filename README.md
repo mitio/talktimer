@@ -59,6 +59,10 @@ You can change the time on a tablet you cannot see, for example from a control r
 A time typed in minutes is shown on the tablet without seconds, rounded down (19:47 left shows as
 `19`). A time typed in seconds is shown with seconds.
 
+Instead of a duration you can type the clock time the talk must end at, e.g. `18:30`. The admin page
+sends the time left until then, by the clock of the computer it runs on. Under the countdown the
+admin page shows when the tablet reaches zero, e.g. "Tablet ends at 18:30".
+
 "Check tablet" asks the tablet what it shows right now. "Move the tablet to this room" switches the
 tablet and the admin page to another room number.
 

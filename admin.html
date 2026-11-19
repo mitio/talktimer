@@ -61,6 +61,7 @@
     .tablet.warning  { background-color: #C5B231; }
     .tablet.overtime { background-color: #8f0000; }
     .tablet.waiting  { font-size: 1.4em; font-family: Arial, sans-serif; padding: 0.8em; }
+    .ends { font-size: 1.3em; font-weight: bold; }
     .quota {
       display: inline-block;
       margin: 0 0.5em 0.5em 0;
@@ -124,6 +125,7 @@
         </label>
         <label><input type="radio" name="time-in" value="minutes" checked> minutes</label>
         <label><input type="radio" name="time-in" value="seconds"> seconds</label>
+        <span class="hint" id="time-preview"></span>
       </p>
       <p>
         <label>
@@ -137,9 +139,18 @@
         <input type="submit" value="Send time to the tablet">
         <button type="button" id="check-tablet">Check tablet</button>
       </p>
+      <p>
+        <label>
+          Or end at (clock time):
+          <input type="time" id="end-at">
+        </label>
+        <button type="button" id="send-end">Send end time to the tablet</button>
+        <span class="hint" id="end-preview"></span>
+      </p>
       <p class="hint">
         The countdown on the tablet starts again from the new time.
         With "minutes" the tablet shows only minutes; with "seconds" it shows minutes and seconds.
+        An end time uses the clock of this computer, and the tablet shows only minutes.
       </p>
     </fieldset>
   </form>
@@ -149,6 +160,7 @@
 
     <p class="banner" id="banner">Nothing sent yet.</p>
     <p><span class="tablet" id="tablet">–</span></p>
+    <p class="ends" id="tablet-ends"></p>
     <p class="hint" id="tablet-report">No report from the tablet yet.</p>
   </fieldset>
 
@@ -180,6 +192,7 @@
       var SILENCE_MS = 120000;
       var LOW_QUOTA = 30;
       var LOG_SIZE = 20;
+      var MAX_END_SECONDS = 12 * 60 * 60; // an end time further away is most likely a typo
 
       var state = {
         room: null,
@@ -202,6 +215,28 @@
 
       var clockTime = function (date) {
         return pad(date.getHours()) + ':' + pad(date.getMinutes()) + ':' + pad(date.getSeconds());
+      };
+
+      var shortClock = function (date) {
+        return pad(date.getHours()) + ':' + pad(date.getMinutes());
+      };
+
+      // Seconds from now until the next time this computer's clock shows the
+      // given "HH:MM". Returns null if the value is not a clock time.
+      var secondsUntil = function (value) {
+        var match = /^(\d{1,2}):(\d{2})$/.exec(value || '');
+
+        if (!match) return null;
+
+        var end = new Date();
+
+        end.setHours(parseInt(match[1], 10), parseInt(match[2], 10), 0, 0);
+
+        if (end.getTime() <= Date.now()) {
+          end.setDate(end.getDate() + 1);
+        }
+
+        return Math.round((end.getTime() - Date.now()) / 1000);
       };
 
       // The same format the tablet shows: minutes:seconds, negative after zero.
@@ -303,6 +338,8 @@
         var tablet = state.tablet;
         var box    = el('tablet');
 
+        el('tablet-ends').textContent = '';
+
         if (!tablet) {
           box.className = 'tablet';
           box.textContent = '–';
@@ -326,6 +363,9 @@
         }
 
         box.textContent = tabletText(remaining, tablet.hideSeconds);
+
+        el('tablet-ends').textContent = (remaining < 0 ? 'Tablet ended at ' : 'Tablet ends at ') +
+          shortClock(new Date(tablet.at + tablet.remaining * 1000));
       };
 
       var clearPendingTimer = function () {
@@ -601,6 +641,48 @@
              (inMinutes ? ', seconds hidden' : ', seconds shown'));
       });
 
+      el('send-end').addEventListener('click', function () {
+        var seconds = secondsUntil(el('end-at').value);
+        var warn    = secondsFrom('warn-at', 'warn-time-in') || 0;
+
+        if (seconds === null) {
+          showBanner('bad', 'Type the end time as a clock time first, for example 18:30.');
+          return;
+        }
+
+        if (seconds > MAX_END_SECONDS) {
+          showBanner('bad', 'That end time is more than 12 hours away. Check it.');
+          return;
+        }
+
+        if (warn < 0 || warn >= seconds) {
+          showBanner('bad', 'The warning time must be shorter than the time.');
+          return;
+        }
+
+        send('set', { seconds: seconds, warn: warn, hideSeconds: true },
+             'end at ' + el('end-at').value + ' (' + formatSeconds(seconds) + ' from now)' +
+             (warn ? ', warning at ' + formatSeconds(warn) : '') + ', seconds hidden');
+      });
+
+      // Shows what each of the two time fields would do if sent right now.
+      var renderPreviews = function () {
+        var seconds  = secondsFrom('time', 'time-in');
+        var untilEnd = secondsUntil(el('end-at').value);
+
+        el('time-preview').textContent = seconds > 0
+          ? '→ would end at ' + shortClock(new Date(Date.now() + seconds * 1000))
+          : '';
+
+        if (untilEnd === null) {
+          el('end-preview').textContent = '';
+        } else if (untilEnd > MAX_END_SECONDS) {
+          el('end-preview').textContent = '→ more than 12 hours away';
+        } else {
+          el('end-preview').textContent = '→ ' + formatSeconds(untilEnd) + ' from now';
+        }
+      };
+
       el('check-tablet').addEventListener('click', function () {
         send('ping', {}, 'check tablet');
       });
@@ -653,6 +735,7 @@
       });
 
       setInterval(renderTablet, 500);
+      setInterval(renderPreviews, 500);
 
       setInterval(function () {
         if (state.source && Date.now() - state.lastAlive > SILENCE_MS) {

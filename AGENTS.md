@@ -73,6 +73,8 @@ Both pages listen to the same topic and ignore their own kind of message.
 | `room` | admin | `id`, `room` | Tablet joins the new room, rewrites its own link, and sends `status` with `ack: id` **in the new room** |
 | `status` | tablet | `ack` (command id or `null`), `room`, `state` (`waiting`, `running`, `warning`, `overtime`), `total`, `warn`, `hideSeconds`, `remaining` (seconds, `null` when waiting), `left` and `limit` (the tablet's ntfy quota) | Admin shows the confirmation and counts down locally from `remaining` |
 
+An end time typed in the admin page ("end at 18:30") is not a message type of its own: the admin page converts it to seconds with its own clock and sends a normal `set` with `hideSeconds: true`. The tablet never needs a correct clock. "Tablet ends at HH:MM" in the admin page is the moment the last `status` arrived plus its `remaining`.
+
 The tablet also sends a `status` with `ack: null` once per page load and when someone presses `↺` or `⨉` on it.
 
 ### Rules — keep them when you change the code
