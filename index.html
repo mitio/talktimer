@@ -116,6 +116,35 @@
       color: rgba(255, 255, 255, 0.5);
       background-color: rgba(255, 255, 255, 0.2);
     }
+    .remote-waiting {
+      display: none;
+      color: #FFF;
+      text-align: center;
+      padding: 35vh 1em 0;
+      font-size: 6vw;
+      font-weight: bold;
+    }
+    .remote-waiting .room-line {
+      display: block;
+      margin-top: 0.5em;
+      font-size: 0.6em;
+      font-weight: normal;
+      opacity: 0.7;
+    }
+    .remote-room .remote-waiting {
+      display: block;
+    }
+    .remote-room.timer-active .remote-waiting,
+    .remote-room .help {
+      display: none;
+    }
+    .remote-room .controls {
+      display: block;
+    }
+    .remote-room:not(.timer-active) .controls a[href=restart],
+    .remote-room:not(.timer-active) .controls a[href=reset] {
+      display: none;
+    }
     .github { float: right; }
     p a { color: #20C9FF; }
   </style>
@@ -267,8 +296,8 @@
           });
       };
 
-      var restartTimer = function () {
-        startedAt = new Date();
+      var restartTimer = function (startAt) {
+        startedAt = (startAt instanceof Date) ? startAt : new Date();
 
         stopTimer();
 
@@ -321,6 +350,368 @@
         }
       };
 
+      // Remote control. With ?room=<number> in the link, the timer listens to a
+      // ntfy.sh topic for commands sent by admin.html and reports back on the
+      // same topic. The protocol and its rules are described in AGENTS.md.
+      var NTFY_URL = 'https://ntfy.sh/';
+      var REMOTE_TOPIC_PREFIX = 'talktimer-room-';
+      var REMOTE_STORAGE_KEY = '_talktimer_remote';
+      var REMOTE_RESUME_MAX_AGE_MS = 12 * 60 * 60 * 1000; // ntfy.sh keeps messages 12 hours
+      var REMOTE_RETRY_MS = 10000;
+      var REMOTE_SILENCE_MS = 120000;
+      var remote = {
+        room: null,        // the room this page listens to
+        connection: 0,     // increases on every (re)connect, so stale callbacks can tell
+        source: null,      // the open EventSource
+        since: null,       // server time of the newest message seen in this room
+        seen: {},          // ntfy message ids already handled in this room
+        lastAlive: 0,      // when the connection last showed a sign of life
+        helloSent: false,  // the "I am online" status goes out once per page load
+        state: {}          // what survives a reload, see saveRemoteState
+      };
+
+      var parseRoom = function (value) {
+        value = (value === undefined || value === null) ? '' : String(value);
+
+        return /^\d{1,12}$/.test(value) ? value : null;
+      };
+
+      var loadRemoteState = function () {
+        try {
+          return JSON.parse(localStorage[REMOTE_STORAGE_KEY] || '{}') || {};
+        } catch (e) {
+          return {};
+        }
+      };
+
+      var saveRemoteState = function () {
+        remote.state.room = remote.room;
+
+        try {
+          localStorage[REMOTE_STORAGE_KEY] = JSON.stringify(remote.state);
+        } catch (e) {}
+      };
+
+      var rememberRemoteCountdown = function (running) {
+        remote.state.running   = running;
+        remote.state.total     = totalDurationInSeconds;
+        remote.state.warn      = warnAtInSeconds;
+        remote.state.startedAt = startedAt ? startedAt.getTime() : null;
+
+        saveRemoteState();
+      };
+
+      var remoteSnapshot = function () {
+        var snapshot = {
+          state: 'waiting',
+          total: totalDurationInSeconds || 0,
+          warn: warnAtInSeconds || 0,
+          remaining: null
+        };
+
+        if (updateTimerDisplayInterval !== null && totalDurationInSeconds) {
+          snapshot.remaining = totalDurationInSeconds - Math.round((new Date() - startedAt) / 1000);
+
+          if (snapshot.remaining < 0) {
+            snapshot.state = 'overtime';
+          } else if (snapshot.remaining <= snapshot.warn) {
+            snapshot.state = 'warning';
+          } else {
+            snapshot.state = 'running';
+          }
+        }
+
+        return snapshot;
+      };
+
+      // How many messages ntfy.sh still accepts today from this internet address.
+      var remoteQuota = function () {
+        return fetch(NTFY_URL + 'v1/account')
+          .then(function (response) {
+            return response.ok ? response.json() : null;
+          })
+          .then(function (account) {
+            if (!account || !account.stats || !account.limits) return null;
+
+            return { left: account.stats.messages_remaining, limit: account.limits.messages };
+          })
+          .catch(function () {
+            return null;
+          });
+      };
+
+      var sendRemoteStatus = function (ackId) {
+        var room = remote.room;
+
+        if (!room) return;
+
+        remoteQuota().then(function (quota) {
+          var status = remoteSnapshot();
+
+          status.type = 'status';
+          status.ack  = ackId || null;
+          status.room = room;
+
+          if (quota) {
+            status.left  = Math.max(quota.left - 1, 0); // this status uses one message
+            status.limit = quota.limit;
+          }
+
+          return fetch(NTFY_URL + REMOTE_TOPIC_PREFIX + room, {
+            method: 'POST',
+            body: JSON.stringify(status)
+          });
+        }).catch(function () {});
+      };
+
+      var parseRemoteCommand = function (message) {
+        var command;
+
+        try {
+          command = JSON.parse(message.message);
+        } catch (e) {
+          return null;
+        }
+
+        if (!command || !command.id) return null;
+        if (command.type !== 'set' && command.type !== 'ping' && command.type !== 'room') return null;
+
+        return command;
+      };
+
+      var applyRemoteCommand = function (command, message) {
+        remote.state.lastId   = message.id;
+        remote.state.lastTime = message.time;
+
+        if (command.type === 'set') {
+          var seconds = parseInt(command.seconds, 10);
+
+          if (!(seconds > 0)) {
+            saveRemoteState();
+            return;
+          }
+
+          totalDurationInSeconds = seconds;
+          warnAtInSeconds        = Math.max(parseInt(command.warn, 10) || 0, 0);
+
+          restartTimer();
+          rememberRemoteCountdown(true);
+        } else if (command.type === 'room') {
+          var newRoom = parseRoom(command.room);
+
+          if (newRoom && newRoom !== remote.room) {
+            joinRemoteRoom(newRoom, true);
+          } else {
+            saveRemoteState();
+          }
+        } else {
+          saveRemoteState();
+        }
+
+        sendRemoteStatus(command.id);
+      };
+
+      var handleRemoteMessage = function (message) {
+        if (!message || message.event !== 'message' || remote.seen[message.id]) return;
+
+        remote.seen[message.id] = true;
+
+        if (message.time && (!remote.since || message.time > remote.since)) {
+          remote.since = message.time;
+        }
+
+        // The stream can replay a command this tablet already handled before a
+        // reload (ntfy.sh stores a fresh message with a short delay, so the
+        // catch-up request may not contain it yet). Never apply it twice.
+        if (message.id === remote.state.lastId) return;
+        if (remote.state.lastTime && message.time < remote.state.lastTime) return;
+
+        var command = parseRemoteCommand(message);
+
+        if (command) applyRemoteCommand(command, message);
+      };
+
+      // Messages that arrived while this page was closed or offline. Only the
+      // newest "set" or "room" command is applied, and only if it is newer than
+      // the last command this tablet already handled. Returns true if one was.
+      var catchUpRemote = function (messages) {
+        var startIndex = 0;
+        var foundLast  = false;
+        var newest     = null;
+        var i;
+
+        for (i = 0; i < messages.length; i++) {
+          if (messages[i].id === remote.state.lastId) {
+            startIndex = i + 1;
+            foundLast  = true;
+          }
+        }
+
+        for (i = 0; i < messages.length; i++) {
+          var message  = messages[i];
+          var wasSeen  = remote.seen[message.id];
+          var isNewer  = foundLast || !remote.state.lastTime || message.time > remote.state.lastTime;
+
+          remote.seen[message.id] = true;
+
+          if (message.time && (!remote.since || message.time > remote.since)) {
+            remote.since = message.time;
+          }
+
+          if (i < startIndex || wasSeen || !isNewer) continue;
+
+          var command = parseRemoteCommand(message);
+
+          if (command && (command.type === 'set' || command.type === 'room')) {
+            newest = { command: command, message: message };
+          }
+        }
+
+        if (!newest) return false;
+
+        applyRemoteCommand(newest.command, newest.message);
+
+        return true;
+      };
+
+      var connectRemote = function () {
+        var connection = ++remote.connection;
+        var topicUrl   = NTFY_URL + REMOTE_TOPIC_PREFIX + remote.room;
+
+        if (remote.source) {
+          remote.source.close();
+          remote.source = null;
+        }
+
+        var retryLater = function () {
+          if (connection !== remote.connection) return;
+
+          if (remote.source) {
+            remote.source.close();
+            remote.source = null;
+          }
+
+          setTimeout(function () {
+            if (connection === remote.connection) connectRemote();
+          }, REMOTE_RETRY_MS);
+        };
+
+        fetch(topicUrl + '/json?poll=1&since=' + (remote.since || 'all'))
+          .then(function (response) {
+            if (!response.ok) throw new Error('HTTP ' + response.status);
+
+            return response.text();
+          })
+          .then(function (text) {
+            if (connection !== remote.connection) return;
+
+            var messages = [];
+
+            text.split('\n').forEach(function (line) {
+              if (!line) return;
+
+              try {
+                var message = JSON.parse(line);
+
+                if (message.event === 'message') messages.push(message);
+              } catch (e) {}
+            });
+
+            var applied = catchUpRemote(messages);
+
+            if (!remote.helloSent) {
+              remote.helloSent = true;
+
+              if (!applied) sendRemoteStatus(null);
+            }
+
+            // Catching up may have moved this page to another room.
+            if (connection !== remote.connection) return;
+
+            var source = new EventSource(topicUrl + '/sse?since=' + (remote.since || 'all'));
+            var alive  = function () {
+              remote.lastAlive = Date.now();
+            };
+
+            remote.source = source;
+            alive();
+
+            source.addEventListener('open', alive);
+            source.addEventListener('keepalive', alive);
+
+            source.onmessage = function (e) {
+              alive();
+
+              if (connection !== remote.connection) return;
+
+              try {
+                handleRemoteMessage(JSON.parse(e.data));
+              } catch (err) {}
+            };
+
+            source.onerror = retryLater;
+          })
+          .catch(retryLater);
+      };
+
+      var joinRemoteRoom = function (room, rewriteLink) {
+        remote.room  = room;
+        remote.since = null;
+        remote.seen  = {};
+
+        $('.remote-waiting .room').text(room);
+
+        if (rewriteLink && window.history && history.replaceState) {
+          var search = location.search.replace(/([?&]room=)[^&]*/, '$1' + room);
+
+          history.replaceState(null, '', location.pathname + search + location.hash);
+        }
+
+        saveRemoteState();
+        connectRemote();
+      };
+
+      var startRemote = function (roomFromLink) {
+        var room = parseRoom(roomFromLink);
+
+        if (!room) return;
+
+        $('html').addClass('remote-room');
+
+        if (!window.fetch || !window.EventSource || !window.Promise) {
+          $('.remote-waiting').text('Remote control needs a newer browser.');
+          return;
+        }
+
+        remote.state = loadRemoteState();
+
+        // A link to another room than the stored one starts from scratch, so
+        // this page follows a "room" command that may wait there.
+        if (remote.state.room !== room) {
+          remote.state = {};
+        }
+
+        var age = Date.now() - (remote.state.startedAt || 0);
+
+        // After a reload, continue the countdown the control room started.
+        if (remote.state.running && remote.state.total && age < REMOTE_RESUME_MAX_AGE_MS) {
+          totalDurationInSeconds = remote.state.total;
+          warnAtInSeconds        = remote.state.warn || 0;
+
+          restartTimer(new Date(remote.state.startedAt));
+        }
+
+        joinRemoteRoom(room, false);
+
+        setInterval(function () {
+          if (remote.source && Date.now() - remote.lastAlive > REMOTE_SILENCE_MS) {
+            connectRemote();
+          }
+        }, 30000);
+
+        window.addEventListener('online', connectRemote);
+      };
+
       $(window).resize(resizeTimerDisplay);
 
       $('a[href=toggle-fullscreen]').click(function(e) {
@@ -338,13 +729,25 @@
       $('a[href=restart]').click(function(e) {
         e.preventDefault();
 
+        if (!totalDurationInSeconds) return;
+
         restartTimer();
+
+        if (remote.room) {
+          rememberRemoteCountdown(true);
+          sendRemoteStatus(null);
+        }
       });
 
       $('a[href=reset]').click(function(e) {
         e.preventDefault();
 
         stopTimer();
+
+        if (remote.room) {
+          rememberRemoteCountdown(false);
+          sendRemoteStatus(null);
+        }
       });
 
       $('form').submit(function(e) {
@@ -373,6 +776,8 @@
       } else {
         setStateInUI(loadState());
       }
+
+      startRemote(params['room']);
     });
   </script>
 </head>
@@ -386,6 +791,10 @@
     <a href="reset">&times;</a>
   </div>
   <div class="timer-display"></div>
+  <div class="remote-waiting">
+    Waiting for the control room
+    <span class="room-line">Room <span class="room"></span></span>
+  </div>
   <div class="help">
     <h1>Talk Timer</h1>
     <form>

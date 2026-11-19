@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Talk Timer – control room</title>
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+
+  <style type="text/css">
+    body {
+      margin: 0;
+      padding: 1em 2em 3em;
+      background-color: #000;
+      color: #FFF;
+      font-family: Arial, sans-serif;
+    }
+    h1 { margin: 0.4em 0; }
+    a { color: #20C9FF; }
+    fieldset {
+      margin: 1em 0;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+    }
+    input, button {
+      font-size: 1.2em;
+    }
+    input[type=number] { width: 5em; }
+    input[type=text] { width: 100%; max-width: 30em; box-sizing: border-box; }
+    button { margin: 0.2em 0.2em 0.2em 0; cursor: pointer; }
+    label { margin-right: 0.8em; }
+    p { margin: 0.7em 0; }
+    .hint { color: rgba(255, 255, 255, 0.6); font-size: 0.9em; }
+    .current-room { font-size: 1.6em; font-weight: bold; }
+    .banner {
+      padding: 0.6em 0.8em;
+      font-size: 1.3em;
+      font-weight: bold;
+      background-color: #333;
+    }
+    .banner.wait { background-color: #555; }
+    .banner.ok   { background-color: green; }
+    .banner.bad  { background-color: #8f0000; }
+    .tablet {
+      display: inline-block;
+      min-width: 4.5em;
+      padding: 0.1em 0.4em;
+      font-family: Impact, Arial, sans-serif;
+      font-size: 4em;
+      font-weight: bold;
+      text-align: center;
+      background-color: #333;
+    }
+    .tablet.running  { background-color: green; }
+    .tablet.warning  { background-color: #C5B231; }
+    .tablet.overtime { background-color: #8f0000; }
+    .tablet.waiting  { font-size: 1.4em; font-family: Arial, sans-serif; padding: 0.8em; }
+    .quota {
+      display: inline-block;
+      margin: 0 0.5em 0.5em 0;
+      padding: 0.5em 0.8em;
+      border: 2px solid rgba(255, 255, 255, 0.6);
+      font-size: 1.3em;
+      font-weight: bold;
+    }
+    .quota.low { color: #FF5555; border-color: #FF5555; }
+    #log {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      font-family: monospace;
+      font-size: 1.05em;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+  <h1>Talk Timer – control room</h1>
+  <p class="hint">
+    Change the time on a tablet you cannot see. The tablet must have the timer open with the same room number.
+    <a href="https://github.com/mitio/talktimer#remote-control" target="_blank" rel="noopener">Instructions</a>
+  </p>
+
+  <fieldset>
+    <legend>Room</legend>
+
+    <p>
+      Current room: <span class="current-room" id="current-room">–</span>
+      <span class="hint" id="connection"></span>
+    </p>
+    <p>
+      <label for="tablet-link">Open this link on the tablet:</label><br>
+      <input type="text" id="tablet-link" readonly>
+      <button type="button" id="copy-link">Copy</button>
+    </p>
+    <p>
+      <label>
+        New room number:
+        <input type="number" id="new-room" min="0" step="1">
+      </label>
+      <button type="button" id="random-room">Random</button>
+      <button type="button" id="join-room">Join this room</button>
+      <button type="button" id="move-room">Move the tablet to this room</button>
+    </p>
+    <p class="hint">
+      "Join" switches only this page. "Move" also tells the tablet to switch, and waits for its confirmation.
+    </p>
+  </fieldset>
+
+  <form id="time-form">
+    <fieldset>
+      <legend>Time</legend>
+
+      <p>
+        <label>
+          New time:
+          <input type="number" id="time" min="1" step="1" required>
+        </label>
+        <label><input type="radio" name="time-in" value="minutes" checked> minutes</label>
+        <label><input type="radio" name="time-in" value="seconds"> seconds</label>
+      </p>
+      <p>
+        <label>
+          Show "warning" color at:
+          <input type="number" id="warn-at" min="0" step="1">
+        </label>
+        <label><input type="radio" name="warn-time-in" value="minutes" checked> minutes</label>
+        <label><input type="radio" name="warn-time-in" value="seconds"> seconds</label>
+      </p>
+      <p>
+        <input type="submit" value="Send time to the tablet">
+        <button type="button" id="check-tablet">Check tablet</button>
+      </p>
+      <p class="hint">The countdown on the tablet starts again from the new time.</p>
+    </fieldset>
+  </form>
+
+  <fieldset>
+    <legend>Tablet</legend>
+
+    <p class="banner" id="banner">Nothing sent yet.</p>
+    <p><span class="tablet" id="tablet">–</span></p>
+    <p class="hint" id="tablet-report">No report from the tablet yet.</p>
+  </fieldset>
+
+  <fieldset>
+    <legend>Messages left today (ntfy.sh allows 250 per day)</legend>
+
+    <p>
+      <span class="quota" id="quota">Messages left today: –</span>
+      <span class="quota" id="tablet-quota">Tablet: no report yet</span>
+    </p>
+    <p class="hint">Sending a time or a check costs one message here and one on the tablet. Red means fewer than 30 are left.</p>
+  </fieldset>
+
+  <fieldset>
+    <legend>Last events</legend>
+    <ul id="log"></ul>
+  </fieldset>
+
+  <script type="text/javascript">
+    // The control-room side of the remote control. It sends commands to a
+    // ntfy.sh topic and shows what the tablet (index.html?room=<number>)
+    // reports back on the same topic. The protocol is described in AGENTS.md.
+    (function () {
+      var NTFY_URL = 'https://ntfy.sh/';
+      var TOPIC_PREFIX = 'talktimer-room-';
+      var ROOM_STORAGE_KEY = '_talktimer_admin_room';
+      var CONFIRM_TIMEOUT_MS = 5000;
+      var RETRY_MS = 10000;
+      var SILENCE_MS = 120000;
+      var LOW_QUOTA = 30;
+      var LOG_SIZE = 20;
+
+      var state = {
+        room: null,
+        connection: 0,   // increases on every (re)connect, so stale callbacks can tell
+        source: null,
+        since: null,     // server time of the newest message seen in this room
+        seen: {},        // ntfy message ids already handled in this room
+        lastAlive: 0,
+        pending: null,   // the command that waits for the tablet's confirmation
+        tablet: null     // the last status the tablet reported
+      };
+
+      var el = function (id) {
+        return document.getElementById(id);
+      };
+
+      var pad = function (number) {
+        return number < 10 ? '0' + number : String(number);
+      };
+
+      var clockTime = function (date) {
+        return pad(date.getHours()) + ':' + pad(date.getMinutes()) + ':' + pad(date.getSeconds());
+      };
+
+      // The same format the tablet shows: minutes:seconds, negative after zero.
+      var formatSeconds = function (seconds) {
+        var minutes = Math.floor(Math.abs(seconds) / 60);
+        var rest    = Math.abs(seconds % 60);
+
+        return (seconds < 0 ? '-' : '') + minutes + ':' + pad(rest);
+      };
+
+      var log = function (text) {
+        var item = document.createElement('li');
+
+        item.textContent = clockTime(new Date()) + '  ' + text;
+        el('log').insertBefore(item, el('log').firstChild);
+
+        while (el('log').children.length > LOG_SIZE) {
+          el('log').removeChild(el('log').lastChild);
+        }
+      };
+
+      var showBanner = function (kind, text) {
+        el('banner').className = 'banner ' + kind;
+        el('banner').textContent = text;
+      };
+
+      var parseRoom = function (value) {
+        value = (value === undefined || value === null) ? '' : String(value);
+
+        return /^\d{1,12}$/.test(value) ? value : null;
+      };
+
+      var randomRoom = function () {
+        return String(1000 + Math.floor(Math.random() * 9000));
+      };
+
+      var newId = function () {
+        return Date.now().toString(36) + Math.random().toString(36).substring(2, 8);
+      };
+
+      var tabletLink = function (room) {
+        return location.href.replace(/[^\/]*([?#].*)?$/, '') + '?room=' + room;
+      };
+
+      // "today", "tomorrow", or the date for anything further away.
+      var dayName = function (date) {
+        var startOfToday = new Date();
+
+        startOfToday.setHours(0, 0, 0, 0);
+
+        var startOfThatDay = new Date(date.getTime());
+
+        startOfThatDay.setHours(0, 0, 0, 0);
+
+        var days = Math.round((startOfThatDay - startOfToday) / 86400000);
+
+        if (days === 0) return 'today';
+        if (days === 1) return 'tomorrow';
+
+        return pad(date.getDate()) + '.' + pad(date.getMonth() + 1) + '.';
+      };
+
+      var showQuota = function (element, label, left, limit, resetAt) {
+        var text = label + left + ' of ' + limit + (resetAt ? '' : ' left');
+
+        if (resetAt) {
+          var reset = new Date(resetAt * 1000);
+
+          text += ' · resets at ' + pad(reset.getHours()) + ':' + pad(reset.getMinutes()) + ' ' + dayName(reset);
+        }
+
+        element.textContent = text;
+        element.className = left < LOW_QUOTA ? 'quota low' : 'quota';
+      };
+
+      // How many messages ntfy.sh still accepts today from this internet address.
+      var refreshQuota = function () {
+        fetch(NTFY_URL + 'v1/account')
+          .then(function (response) {
+            return response.ok ? response.json() : null;
+          })
+          .then(function (account) {
+            if (!account || !account.stats || !account.limits) return;
+
+            showQuota(el('quota'), 'Messages left today: ', account.stats.messages_remaining,
+                      account.limits.messages, account.stats.reset_at);
+          })
+          .catch(function () {});
+      };
+
+      var renderTablet = function () {
+        var tablet = state.tablet;
+        var box    = el('tablet');
+
+        if (!tablet) {
+          box.className = 'tablet';
+          box.textContent = '–';
+          return;
+        }
+
+        if (tablet.state === 'waiting' || tablet.remaining === null || tablet.remaining === undefined) {
+          box.className = 'tablet waiting';
+          box.textContent = 'Waiting screen, no time is running';
+          return;
+        }
+
+        var remaining = tablet.remaining - Math.round((Date.now() - tablet.at) / 1000);
+
+        if (remaining < 0) {
+          box.className = 'tablet overtime';
+        } else if (remaining <= (tablet.warn || 0)) {
+          box.className = 'tablet warning';
+        } else {
+          box.className = 'tablet running';
+        }
+
+        box.textContent = formatSeconds(remaining);
+      };
+
+      var clearPendingTimer = function () {
+        if (state.pending && state.pending.timer) {
+          clearTimeout(state.pending.timer);
+          state.pending.timer = null;
+        }
+      };
+
+      var handleStatus = function (status, at, fromHistory) {
+        state.tablet = {
+          state: status.state,
+          remaining: status.remaining,
+          warn: status.warn,
+          at: at
+        };
+
+        el('tablet-report').textContent = 'Last report from the tablet: ' + clockTime(new Date(at)) +
+          (fromHistory ? ' (read from the history, the time shown is an estimate)' : '');
+
+        if (typeof status.left === 'number' && typeof status.limit === 'number') {
+          showQuota(el('tablet-quota'), 'Tablet: ', status.left, status.limit, null);
+        }
+
+        renderTablet();
+
+        var shows = (status.state === 'waiting' || status.remaining === null)
+          ? 'the waiting screen'
+          : formatSeconds(status.remaining);
+
+        if (state.pending && status.ack === state.pending.id) {
+          var late = state.pending.timedOut;
+
+          clearPendingTimer();
+          showBanner('ok', 'Tablet confirmed' + (late ? ' (late)' : '') + ': ' + state.pending.label +
+                           ' · ' + clockTime(new Date()));
+          log('Tablet confirmed: ' + state.pending.label + '. It shows ' + shows + '.');
+          state.pending = null;
+        } else if (!fromHistory) {
+          log('Tablet reported: it shows ' + shows + '.');
+        }
+      };
+
+      var handleMessage = function (message, fromHistory) {
+        if (!message || message.event !== 'message' || state.seen[message.id]) return;
+
+        state.seen[message.id] = true;
+
+        if (message.time && (!state.since || message.time > state.since)) {
+          state.since = message.time;
+        }
+
+        var body;
+
+        try {
+          body = JSON.parse(message.message);
+        } catch (e) {
+          return;
+        }
+
+        if (!body || body.type !== 'status') return;
+
+        handleStatus(body, fromHistory ? message.time * 1000 : Date.now(), fromHistory);
+      };
+
+      var connect = function (afterCatchUp) {
+        var connection = ++state.connection;
+        var room       = state.room;
+        var topicUrl   = NTFY_URL + TOPIC_PREFIX + room;
+
+        if (state.source) {
+          state.source.close();
+          state.source = null;
+        }
+
+        var retryLater = function () {
+          if (connection !== state.connection) return;
+
+          if (state.source) {
+            state.source.close();
+            state.source = null;
+          }
+
+          el('connection').textContent = '· connection lost, trying again…';
+
+          setTimeout(function () {
+            if (connection === state.connection) connect(afterCatchUp);
+          }, RETRY_MS);
+        };
+
+        el('connection').textContent = '· connecting…';
+
+        fetch(topicUrl + '/json?poll=1&since=' + (state.since || 'all'))
+          .then(function (response) {
+            if (!response.ok) throw new Error('HTTP ' + response.status);
+
+            return response.text();
+          })
+          .then(function (text) {
+            if (connection !== state.connection) return;
+
+            var newestStatus = null;
+
+            // Only the newest stored status matters; the older ones are history.
+            text.split('\n').forEach(function (line) {
+              if (!line) return;
+
+              try {
+                var message = JSON.parse(line);
+                var body    = JSON.parse(message.message);
+
+                if (message.event !== 'message' || state.seen[message.id]) return;
+
+                if (body && body.type === 'status') {
+                  if (newestStatus) state.seen[newestStatus.id] = true;
+                  newestStatus = message;
+                } else {
+                  state.seen[message.id] = true;
+                }
+
+                if (message.time && (!state.since || message.time > state.since)) {
+                  state.since = message.time;
+                }
+              } catch (e) {}
+            });
+
+            if (newestStatus) handleMessage(newestStatus, true);
+
+            var source = new EventSource(topicUrl + '/sse?since=' + (state.since || 'all'));
+            var alive  = function () {
+              state.lastAlive = Date.now();
+            };
+
+            state.source = source;
+            alive();
+
+            source.addEventListener('open', alive);
+            source.addEventListener('keepalive', alive);
+
+            source.onmessage = function (e) {
+              alive();
+
+              if (connection !== state.connection) return;
+
+              try {
+                handleMessage(JSON.parse(e.data), false);
+              } catch (err) {}
+            };
+
+            source.onerror = retryLater;
+
+            el('connection').textContent = '· listening';
+
+            if (afterCatchUp) {
+              var callback = afterCatchUp;
+
+              afterCatchUp = null;
+              callback();
+            }
+          })
+          .catch(retryLater);
+      };
+
+      // Sends one command to the room and waits for the tablet's confirmation.
+      var send = function (type, fields, label, room) {
+        var id      = newId();
+        var payload = { type: type, id: id };
+        var name;
+
+        for (name in fields) {
+          payload[name] = fields[name];
+        }
+
+        clearPendingTimer();
+
+        state.pending = { id: id, label: label, timedOut: false, timer: null };
+
+        state.pending.timer = setTimeout(function () {
+          if (!state.pending || state.pending.id !== id) return;
+
+          state.pending.timedOut = true;
+          showBanner('bad', 'NOT confirmed: the tablet did not answer within ' +
+                            (CONFIRM_TIMEOUT_MS / 1000) + ' seconds. Sent: ' + label);
+          log('NOT confirmed: ' + label + '.');
+        }, CONFIRM_TIMEOUT_MS);
+
+        showBanner('wait', 'Sent: ' + label + '. Waiting for the tablet…');
+        log('Sent: ' + label + '.');
+
+        return fetch(NTFY_URL + TOPIC_PREFIX + (room || state.room), {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        })
+          .then(function (response) {
+            if (!response.ok) {
+              throw new Error(response.status === 429
+                ? 'ntfy.sh refused it, the daily limit is reached (HTTP 429)'
+                : 'HTTP ' + response.status);
+            }
+
+            refreshQuota();
+          })
+          .catch(function (error) {
+            if (state.pending && state.pending.id === id) {
+              clearPendingTimer();
+              state.pending = null;
+              showBanner('bad', 'Could not send: ' + label + '. ' + error.message);
+            }
+
+            log('Could not send: ' + label + '. ' + error.message);
+            refreshQuota();
+          });
+      };
+
+      var joinRoom = function (room, checkTablet) {
+        state.room   = room;
+        state.since  = null;
+        state.seen   = {};
+        state.tablet = null;
+
+        try {
+          localStorage[ROOM_STORAGE_KEY] = room;
+        } catch (e) {}
+
+        el('current-room').textContent = room;
+        el('tablet-link').value = tabletLink(room);
+        el('tablet-report').textContent = 'No report from the tablet yet.';
+        el('tablet-quota').textContent = 'Tablet: no report yet';
+        el('tablet-quota').className = 'quota';
+        renderTablet();
+
+        connect(checkTablet ? function () {
+          send('ping', {}, 'check tablet');
+        } : null);
+      };
+
+      var secondsFrom = function (inputId, unitName) {
+        var value = parseInt(el(inputId).value, 10);
+        var unit  = document.querySelector('input[name="' + unitName + '"]:checked').value;
+
+        if (isNaN(value)) return null;
+
+        return unit === 'minutes' ? value * 60 : value;
+      };
+
+      el('time-form').addEventListener('submit', function (e) {
+        e.preventDefault();
+
+        var seconds = secondsFrom('time', 'time-in');
+        var warn    = secondsFrom('warn-at', 'warn-time-in') || 0;
+
+        if (!(seconds > 0)) {
+          showBanner('bad', 'Type a time greater than zero.');
+          return;
+        }
+
+        if (warn < 0 || warn >= seconds) {
+          showBanner('bad', 'The warning time must be shorter than the time.');
+          return;
+        }
+
+        send('set', { seconds: seconds, warn: warn },
+             'new time ' + formatSeconds(seconds) + (warn ? ', warning at ' + formatSeconds(warn) : ''));
+      });
+
+      el('check-tablet').addEventListener('click', function () {
+        send('ping', {}, 'check tablet');
+      });
+
+      el('random-room').addEventListener('click', function () {
+        el('new-room').value = randomRoom();
+      });
+
+      var readNewRoom = function () {
+        var room = parseRoom(el('new-room').value);
+
+        if (!room) {
+          showBanner('bad', 'Type a room number first (digits only, up to 12).');
+        } else if (room === state.room) {
+          showBanner('bad', 'This is already the current room.');
+          room = null;
+        }
+
+        return room;
+      };
+
+      el('join-room').addEventListener('click', function () {
+        var room = readNewRoom();
+
+        if (!room) return;
+
+        log('This page joined room ' + room + '.');
+        joinRoom(room, true);
+      });
+
+      el('move-room').addEventListener('click', function () {
+        var room    = readNewRoom();
+        var oldRoom = state.room;
+
+        if (!room) return;
+
+        // The command goes to the old room; the confirmation arrives in the new one.
+        send('room', { room: room }, 'move the tablet from room ' + oldRoom + ' to room ' + room, oldRoom);
+        joinRoom(room, false);
+      });
+
+      el('copy-link').addEventListener('click', function () {
+        el('tablet-link').select();
+
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(el('tablet-link').value).catch(function () {});
+        } else {
+          document.execCommand('copy');
+        }
+      });
+
+      setInterval(renderTablet, 500);
+
+      setInterval(function () {
+        if (state.source && Date.now() - state.lastAlive > SILENCE_MS) {
+          connect(null);
+        }
+      }, 30000);
+
+      window.addEventListener('online', function () {
+        if (state.room) connect(null);
+      });
+
+      if (!window.fetch || !window.EventSource || !window.Promise) {
+        showBanner('bad', 'This browser is too old for the control room page.');
+        return;
+      }
+
+      var roomInLink = (location.search.match(/[?&]room=(\d+)/) || [])[1];
+      var storedRoom = null;
+
+      try {
+        storedRoom = localStorage[ROOM_STORAGE_KEY];
+      } catch (e) {}
+
+      refreshQuota();
+      joinRoom(parseRoom(roomInLink) || parseRoom(storedRoom) || randomRoom(), true);
+    })();
+  </script>
+</body>
+</html>
