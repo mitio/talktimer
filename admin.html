@@ -130,7 +130,10 @@
         <input type="submit" value="Send time to the tablet">
         <button type="button" id="check-tablet">Check tablet</button>
       </p>
-      <p class="hint">The countdown on the tablet starts again from the new time.</p>
+      <p class="hint">
+        The countdown on the tablet starts again from the new time.
+        With "minutes" the tablet shows only minutes; with "seconds" it shows minutes and seconds.
+      </p>
     </fieldset>
   </form>
 
@@ -200,6 +203,13 @@
         var rest    = Math.abs(seconds % 60);
 
         return (seconds < 0 ? '-' : '') + minutes + ':' + pad(rest);
+      };
+
+      // What the tablet shows: without seconds it shows whole minutes, rounded down.
+      var tabletText = function (seconds, hideSeconds) {
+        if (!hideSeconds) return formatSeconds(seconds);
+
+        return (seconds < 0 ? '-' : '') + Math.floor(Math.abs(seconds) / 60);
       };
 
       var log = function (text) {
@@ -308,7 +318,7 @@
           box.className = 'tablet running';
         }
 
-        box.textContent = formatSeconds(remaining);
+        box.textContent = tabletText(remaining, tablet.hideSeconds);
       };
 
       var clearPendingTimer = function () {
@@ -323,6 +333,7 @@
           state: status.state,
           remaining: status.remaining,
           warn: status.warn,
+          hideSeconds: status.hideSeconds === true,
           at: at
         };
 
@@ -337,7 +348,8 @@
 
         var shows = (status.state === 'waiting' || status.remaining === null)
           ? 'the waiting screen'
-          : formatSeconds(status.remaining);
+          : tabletText(status.remaining, status.hideSeconds === true) +
+            (status.hideSeconds === true ? ' (minutes only, ' + formatSeconds(status.remaining) + ' left)' : '');
 
         if (state.pending && status.ack === state.pending.id) {
           var late = state.pending.timedOut;
@@ -563,6 +575,7 @@
         e.preventDefault();
 
         var seconds = secondsFrom('time', 'time-in');
+        var inMinutes = document.querySelector('input[name="time-in"]:checked').value === 'minutes';
         var warn    = secondsFrom('warn-at', 'warn-time-in') || 0;
 
         if (!(seconds > 0)) {
@@ -575,8 +588,10 @@
           return;
         }
 
-        send('set', { seconds: seconds, warn: warn },
-             'new time ' + formatSeconds(seconds) + (warn ? ', warning at ' + formatSeconds(warn) : ''));
+        // A time typed in minutes is shown on the tablet without seconds.
+        send('set', { seconds: seconds, warn: warn, hideSeconds: inMinutes },
+             'new time ' + formatSeconds(seconds) + (warn ? ', warning at ' + formatSeconds(warn) : '') +
+             (inMinutes ? ', seconds hidden' : ', seconds shown'));
       });
 
       el('check-tablet').addEventListener('click', function () {

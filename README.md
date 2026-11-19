@@ -56,6 +56,9 @@ You can change the time on a tablet you cannot see, for example from a control r
    time, and the admin page shows "Tablet confirmed" with the remaining time and color the tablet
    shows. If the tablet does not answer in 5 seconds, the admin page shows "NOT confirmed".
 
+A time typed in minutes is shown on the tablet without seconds, rounded down (19:47 left shows as
+`19`). A time typed in seconds is shown with seconds.
+
 "Check tablet" asks the tablet what it shows right now. "Move the tablet to this room" switches the
 tablet and the admin page to another room number.
 

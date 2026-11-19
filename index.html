@@ -396,6 +396,7 @@
         remote.state.running   = running;
         remote.state.total     = totalDurationInSeconds;
         remote.state.warn      = warnAtInSeconds;
+        remote.state.hideSeconds = $('html').hasClass('hide-seconds');
         remote.state.startedAt = startedAt ? startedAt.getTime() : null;
 
         saveRemoteState();
@@ -406,6 +407,7 @@
           state: 'waiting',
           total: totalDurationInSeconds || 0,
           warn: warnAtInSeconds || 0,
+          hideSeconds: $('html').hasClass('hide-seconds'),
           remaining: null
         };
 
@@ -493,6 +495,11 @@
 
           totalDurationInSeconds = seconds;
           warnAtInSeconds        = Math.max(parseInt(command.warn, 10) || 0, 0);
+
+          // The control room sends minutes without seconds, or seconds with them.
+          if (typeof command.hideSeconds === 'boolean') {
+            $('html').toggleClass('hide-seconds', command.hideSeconds);
+          }
 
           restartTimer();
           rememberRemoteCountdown(true);
@@ -697,6 +704,10 @@
         if (remote.state.running && remote.state.total && age < REMOTE_RESUME_MAX_AGE_MS) {
           totalDurationInSeconds = remote.state.total;
           warnAtInSeconds        = remote.state.warn || 0;
+
+          if (typeof remote.state.hideSeconds === 'boolean') {
+            $('html').toggleClass('hide-seconds', remote.state.hideSeconds);
+          }
 
           restartTimer(new Date(remote.state.startedAt));
         }
