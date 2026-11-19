@@ -280,6 +280,12 @@
           remainingDurationMinutes = '-' + remainingDurationMinutes;
         }
 
+        // Without seconds, show whole minutes rounded up: "1" during the last
+        // minute and "0" when the time is over.
+        if ($('html').hasClass('hide-seconds')) {
+          remainingDurationMinutes = String(Math.ceil(remainingDurationInSeconds / 60));
+        }
+
         timerDisplay.html(remainingDurationMinutes + '<span class="seconds">:' + remainingDurationSeconds + '</span>');
 
         if (remainingDurationInSeconds <= warnAtInSeconds) {

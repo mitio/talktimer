@@ -247,11 +247,11 @@
         return (seconds < 0 ? '-' : '') + minutes + ':' + pad(rest);
       };
 
-      // What the tablet shows: without seconds it shows whole minutes, rounded down.
+      // What the tablet shows: without seconds it shows whole minutes, rounded up.
       var tabletText = function (seconds, hideSeconds) {
         if (!hideSeconds) return formatSeconds(seconds);
 
-        return (seconds < 0 ? '-' : '') + Math.floor(Math.abs(seconds) / 60);
+        return String(Math.ceil(seconds / 60));
       };
 
       var log = function (text) {

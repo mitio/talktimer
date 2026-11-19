@@ -114,7 +114,7 @@ There is no test suite in the repo. Test every change by hand or with a browser-
 | 2 | `?5` and the long preset link | The timer starts at once |
 | 3 | `?room=N`, nothing sent | "Waiting for the control room", room number shown |
 | 4 | Admin sends a time in seconds with a warning | Tablet shows it with seconds within about a second; admin shows "Tablet confirmed" and the same countdown |
-| 4b | Admin sends a time in minutes | Tablet and the admin preview show whole minutes only (rounded down); a reload of the tablet keeps the seconds hidden |
+| 4b | Admin sends a time in minutes | Tablet and the admin preview show whole minutes only, rounded up (`1` during the last minute, `0` when the time is over, `-1` one minute later); a reload of the tablet keeps the seconds hidden |
 | 5 | Admin sends a new time while one runs | Tablet restarts from the new time |
 | 6 | Reload the tablet mid-countdown | The countdown continues, it does not restart |
 | 7 | Close the tablet, send a time, reopen the tablet | Admin shows "NOT confirmed", then "confirmed (late)" when the tablet applies it |

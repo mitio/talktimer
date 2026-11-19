@@ -56,8 +56,9 @@ You can change the time on a tablet you cannot see, for example from a control r
    time, and the admin page shows "Tablet confirmed" with the remaining time and color the tablet
    shows. If the tablet does not answer in 5 seconds, the admin page shows "NOT confirmed".
 
-A time typed in minutes is shown on the tablet without seconds, rounded down (19:47 left shows as
-`19`). A time typed in seconds is shown with seconds.
+A time typed in minutes is shown on the tablet without seconds, rounded up (19:47 left shows as
+`20`, the last minute as `1`, and `0` means the time is over). A time typed in seconds is shown with
+seconds.
 
 Instead of a duration you can type the clock time the talk must end at, e.g. `18:30`. The admin page
 sends the time left until then, by the clock of the computer it runs on. Under the countdown the
