@@ -78,7 +78,8 @@ Good to know:
 
 ### License and contributions
 
-This repo is licensed under [the MIT license](LICENSE.md).
+This repo is licensed under [the MIT license](LICENSE.md). The bundled Anton font in
+`lib/vendor/anton` is licensed under the [SIL Open Font License](lib/vendor/anton/OFL.txt).
 
 All contributions are welcome, provided we keep it simple :)
 

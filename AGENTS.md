@@ -16,6 +16,7 @@ Since November 2026 it also has a remote control: a control-room page changes th
 | `admin.html` | The control-room page of the remote control. Self-contained, plain JavaScript, no library |
 | `time.html` | A static green "you have time" screen (Bulgarian text). Uses Zepto only for sizing and fullscreen |
 | `lib/vendor/zepto/zepto.min.js` | Zepto v1.2.0, default build (zepto, event, ajax, form, ie), from the npm package `zepto@1.2.0`. Zepto has had no release since 2016 |
+| `lib/vendor/anton/` | The Anton font (`Anton-Regular.ttf`, unchanged, from `ofl/anton` in `google/fonts`) used for the countdown digits, and its license `OFL.txt`. The license file must stay next to the font |
 | `timer.png` | Screenshot used by the README and the OpenGraph tags |
 | `README.md`, `LICENSE.md` | User documentation and the MIT license |
 | `.gitignore` | Ignores `CLAUDE.md` (a private, per-developer file) and macOS `.DS_Store` files |
@@ -35,6 +36,7 @@ Since November 2026 it also has a remote control: a control-room page changes th
 - **The timer must work offline** when opened without `room`. Do not load anything from a CDN; vendor it under `lib/vendor/`.
 - JavaScript is written in the old style used throughout: `var`, `function () {}`, no arrow functions, no `let`/`const`, no modules. Browser APIs such as `fetch`, `EventSource` and `Promise` are used only by the remote control, behind a feature check.
 - `index.html` uses Zepto (`$`). `admin.html` uses no library.
+- The countdown font list is `Anton, Impact, sans-serif-condensed, Arial, sans-serif`. `sans-serif-condensed` is Android's built-in condensed font and must stay before `Arial`, because Android substitutes `Arial` with its regular font. The `@font-face` declares Anton as bold so browsers do not thicken it artificially.
 - Two-space indentation. Keep it simple: the README promises "all contributions are welcome, provided we keep it simple".
 - Put untrusted text into the page with `textContent` / `.text()`, never as HTML.
 

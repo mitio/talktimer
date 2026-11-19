@@ -40,11 +40,18 @@
     .banner.wait { background-color: #555; }
     .banner.ok   { background-color: green; }
     .banner.bad  { background-color: #8f0000; }
+    /* Anton, SIL Open Font License 1.1, see lib/vendor/anton/OFL.txt */
+    @font-face {
+      font-family: Anton;
+      src: url(lib/vendor/anton/Anton-Regular.ttf) format('truetype');
+      font-weight: bold;
+      font-display: swap;
+    }
     .tablet {
       display: inline-block;
       min-width: 4.5em;
       padding: 0.1em 0.4em;
-      font-family: Impact, Arial, sans-serif;
+      font-family: Anton, Impact, sans-serif-condensed, Arial, sans-serif;
       font-size: 4em;
       font-weight: bold;
       text-align: center;
